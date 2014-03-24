@@ -148,6 +148,7 @@ typedef		void (*Gif_ReadErrorHandler)(Gif_Stream* gfs,
 
 typedef struct {
     int flags;
+    int loss;
     void *padding[7];
 } Gif_CompressInfo;
 
