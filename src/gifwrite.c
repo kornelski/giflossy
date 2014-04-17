@@ -162,7 +162,7 @@ gif_writer_init(Gif_Writer* grr, FILE* f, const Gif_CompressInfo* gcinfo)
   } else {
     grr->byte_putter = memory_byte_putter;
     grr->block_putter = memory_block_putter;
-  }
+}
   return grr->code_table.nodes && grr->code_table.links;
 }
 
@@ -331,24 +331,30 @@ gfc_lookup_lossy_try_node(Gif_CodeTable *gfc, const Gif_YUVColor *col, Gif_Image
 /* Recursive loop
  * Find node that is descendant of node (or start new search if work_node is null) that best matches pixels starting at pos
  * base_diff and dither are distortion from search made so far */
-static struct selected_node
+static void
 gfc_lookup_lossy(Gif_CodeTable *gfc, const Gif_YUVColor *col, Gif_Image *gfi,
-  unsigned pos, Gif_Node *node, unsigned long base_diff, Gif_YUVDiff dither, int run_of_the_same_color, const unsigned int max_diff)
+  unsigned pos, Gif_Node *node, unsigned long base_diff, Gif_YUVDiff dither, int run_of_the_same_color, const unsigned int max_diff, struct selected_node *best_t)
 {
   unsigned image_endpos = gfi->width * gfi->height;
 
-  struct selected_node best_t = {node, pos, base_diff};
-  if (pos >= image_endpos) return best_t;
+  /* search is biased towards finding longest candidate that is below treshold rather than a match with minimum average error */
+  if (pos > best_t->pos || (pos == best_t->pos && base_diff < best_t->diff)) {
+    struct selected_node t = {node, pos, base_diff};
+    *best_t = t;
+  }
+
+  if (pos >= image_endpos) {
+    return;
+  }
 
   uint8_t suffix = gif_pixel_at_pos(gfi, pos);
   uint8_t next_suffix = gif_pixel_at_pos(gfi, pos+1 >= image_endpos ? pos : pos+1);
   if (suffix == next_suffix) run_of_the_same_color++; else run_of_the_same_color >>= 1;
 
-  assert(!node || (node >= gfc->nodes && node < gfc->nodes + NODES_SIZE));
-  assert(suffix < gfc->clear_code);
   if (!node) {
     /* prefix of the new node must be same as suffix of previously added node */
-    return gfc_lookup_lossy(gfc, col, gfi, pos+1, &gfc->nodes[suffix], base_diff, (Gif_YUVDiff){0,0,0}, run_of_the_same_color, max_diff);
+    gfc_lookup_lossy(gfc, col, gfi, pos+1, &gfc->nodes[suffix], base_diff, (Gif_YUVDiff){0,0,0}, run_of_the_same_color, max_diff, best_t);
+    return;
   }
 
   /* search all nodes that are less than max_diff different from the desired pixel */
@@ -356,16 +362,14 @@ gfc_lookup_lossy(Gif_CodeTable *gfc, const Gif_YUVColor *col, Gif_Image *gfi,
     int i;
     for(i=0; i < gfc->clear_code; i++) {
       if (!node->child.m[i]) continue;
-      gfc_lookup_lossy_try_node(gfc, col, gfi, pos, node->child.m[i], suffix, i, dither, base_diff, max_diff, run_of_the_same_color, &best_t);
+      gfc_lookup_lossy_try_node(gfc, col, gfi, pos, node->child.m[i], suffix, i, dither, base_diff, max_diff, run_of_the_same_color, best_t);
     }
   }
   else {
     for (node = node->child.s; node; node = node->sibling) {
-      gfc_lookup_lossy_try_node(gfc, col, gfi, pos, node, suffix, node->suffix, dither, base_diff, max_diff, run_of_the_same_color, &best_t);
+      gfc_lookup_lossy_try_node(gfc, col, gfi, pos, node, suffix, node->suffix, dither, base_diff, max_diff, run_of_the_same_color, best_t);
     }
   }
-
-  return best_t;
 }
 
 /**
@@ -398,12 +402,7 @@ gfc_lookup_lossy_try_node(Gif_CodeTable *gfc, const Gif_YUVColor *col, Gif_Image
   if (diff <= max_diff) {
     Gif_YUVDiff new_dither = diffused_difference(col[suffix], col[try_suffix], suffix == gfi->transparent, try_suffix == gfi->transparent, dither);
     /* if the candidate pixel is good enough, check all possible continuations of that dictionary string */
-    struct selected_node t = gfc_lookup_lossy(gfc, col, gfi, pos+1, node, base_diff + diff, new_dither, run_of_the_same_color, max_diff);
-
-    /* search is biased towards finding longest candidate that is below treshold rather than a match with minimum average error */
-    if (t.pos > best_t->pos || (t.pos == best_t->pos && t.diff < best_t->diff)) {
-      *best_t = t;
-    }
+    gfc_lookup_lossy(gfc, col, gfi, pos+1, node, base_diff + diff, new_dither, run_of_the_same_color, max_diff, best_t);
   }
 }
 
@@ -455,14 +454,14 @@ write_compressed_data(Gif_Stream *gfs, Gif_Image *gfi,
 
   /* Here we go! */
   gifputbyte(min_code_bits, grr);
-#define CLEAR_CODE      ((Gif_Code) (1 << min_code_bits))
-#define EOI_CODE        ((Gif_Code) (CLEAR_CODE + 1))
+#define CLEAR_CODE	((Gif_Code) (1 << min_code_bits))
+#define EOI_CODE	((Gif_Code) (CLEAR_CODE + 1))
 #define CUR_BUMP_CODE   (1 << cur_code_bits)
   grr->cleared = 0;
 
   cur_code_bits = min_code_bits + 1;
   /* next_code set by first runthrough of output clear_code */
-  GIF_DEBUG(("clear(%d) eoi(%d) bits(%d) ", CLEAR_CODE, EOI_CODE, cur_code_bits));
+  GIF_DEBUG(("clear(%d) eoi(%d) bits(%d)", CLEAR_CODE, EOI_CODE, cur_code_bits));
 
   work_node = NULL;
   output_code = CLEAR_CODE;
@@ -542,15 +541,15 @@ write_compressed_data(Gif_Stream *gfs, Gif_Image *gfi,
       gfc_clear(gfc, CLEAR_CODE);
       clear_pos = clear_bufpos = 0;
 
-      GIF_DEBUG(("clear "));
+      GIF_DEBUG(("clear"));
 
     } else if (output_code == EOI_CODE)
       break;
 
     else {
       if (next_code > CUR_BUMP_CODE && cur_code_bits < GIF_MAX_CODE_BITS)
-        /* bump up compression size */
-        ++cur_code_bits;
+      /* bump up compression size */
+      ++cur_code_bits;
 
       /* Adjust current run length average. */
       run = (run << RUN_EWMA_SCALE) + (1 << (RUN_EWMA_SHIFT - 1));
@@ -567,7 +566,8 @@ write_compressed_data(Gif_Stream *gfs, Gif_Image *gfi,
     /*****
      * Find the next code to output. */
     if (grr->gcinfo.loss) {
-      struct selected_node t = gfc_lookup_lossy(gfc, col, gfi, pos, NULL, 0, (Gif_YUVDiff){0,0,0}, 0, grr->gcinfo.loss * 1000);
+      struct selected_node t = {NULL, pos, 0};
+      gfc_lookup_lossy(gfc, col, gfi, pos, NULL, 0, (Gif_YUVDiff){0,0,0}, 0, grr->gcinfo.loss * 1000, &t);
 
       work_node = t.node;
       run = t.pos - pos;
@@ -636,7 +636,7 @@ write_compressed_data(Gif_Stream *gfs, Gif_Image *gfi,
         imageline++;
         pos++;
         if (pos == line_endpos) {
-  	imageline = gif_imageline(gfi, pos);
+          imageline = gif_imageline(gfi, pos);
           line_endpos += gfi->width;
         }
 
@@ -646,55 +646,55 @@ write_compressed_data(Gif_Stream *gfs, Gif_Image *gfi,
           continue;
         }
 
-        /* Output the current code. */
-        if (next_code < GIF_MAX_CODE) {
-          gfc_define(gfc, work_node, suffix, next_code);
-          next_code++;
-        } else
-          next_code = GIF_MAX_CODE + 1; /* to match "> CUR_BUMP_CODE" above */
+          /* Output the current code. */
+          if (next_code < GIF_MAX_CODE) {
+            gfc_define(gfc, work_node, suffix, next_code);
+            next_code++;
+          } else
+            next_code = GIF_MAX_CODE + 1; /* to match "> CUR_BUMP_CODE" above */
 
-        /* Check whether to clear table. */
-        if (next_code > 4094) {
-          int do_clear = grr->gcinfo.flags & GIF_WRITE_EAGER_CLEAR;
+              /* Check whether to clear table. */
+              if (next_code > 4094) {
+                int do_clear = grr->gcinfo.flags & GIF_WRITE_EAGER_CLEAR;
 
-          if (!do_clear) {
-            unsigned pixels_left = gfi->width * gfi->height - pos;
-            if (pixels_left) {
-              /* Always clear if run_ewma gets small relative to
-                 min_code_bits. Otherwise, clear if #images/run is smaller
-                 than an empirical threshold, meaning it will take more than
-                 3000 or so average runs to complete the image. */
-              if (run_ewma < ((36U << RUN_EWMA_SCALE) / min_code_bits)
-                  || pixels_left > UINT_MAX / RUN_INV_THRESH
-                  || run_ewma < pixels_left * RUN_INV_THRESH)
-                do_clear = 1;
-            }
-          }
+                if (!do_clear) {
+                  unsigned pixels_left = gfi->width * gfi->height - pos;
+                  if (pixels_left) {
+                    /* Always clear if run_ewma gets small relative to
+                       min_code_bits. Otherwise, clear if #images/run is smaller
+                       than an empirical threshold, meaning it will take more than
+                       3000 or so average runs to complete the image. */
+                    if (run_ewma < ((36U << RUN_EWMA_SCALE) / min_code_bits)
+                        || pixels_left > UINT_MAX / RUN_INV_THRESH
+                        || run_ewma < pixels_left * RUN_INV_THRESH)
+                      do_clear = 1;
+                  }
+                }
 
-          if ((do_clear || run < 7) && !clear_pos) {
-            clear_pos = pos - (run + 1);
-            clear_bufpos = bufpos;
-          } else if (!do_clear && run > 50)
-            clear_pos = clear_bufpos = 0;
+                if ((do_clear || run < 7) && !clear_pos) {
+                  clear_pos = pos - (run + 1);
+                  clear_bufpos = bufpos;
+                } else if (!do_clear && run > 50)
+                  clear_pos = clear_bufpos = 0;
 
-          if (do_clear) {
-            GIF_DEBUG(("rewind %u pixels/%d bits ", pos - clear_pos, bufpos + cur_code_bits - clear_bufpos));
-            output_code = CLEAR_CODE;
-            pos = clear_pos;
-            imageline = gif_imageline(gfi, pos);
-            line_endpos = gif_line_endpos(gfi, pos);
-            bufpos = clear_bufpos;
-            buf[bufpos >> 3] &= (1 << (bufpos & 7)) - 1;
+                if (do_clear) {
+                  GIF_DEBUG(("rewind %u pixels/%d bits", pos - clear_pos, bufpos + cur_code_bits - clear_bufpos));
+                  output_code = CLEAR_CODE;
+                  pos = clear_pos;
+                  imageline = gif_imageline(gfi, pos);
+                  line_endpos = gif_line_endpos(gfi, pos);
+                  bufpos = clear_bufpos;
+                  buf[bufpos >> 3] &= (1 << (bufpos & 7)) - 1;
             work_node = NULL;
-            grr->cleared = 1;
-            goto found_output_code;
-          }
-        }
+                  grr->cleared = 1;
+                  goto found_output_code;
+                }
+              }
 
-        output_code = work_node->code;
-        work_node = &gfc->nodes[suffix];
-        goto found_output_code;
-      }
+          output_code = work_node->code;
+          work_node = &gfc->nodes[suffix];
+          goto found_output_code;
+        }
 
       /* Ran out of data if we get here. */
       output_code = (work_node ? work_node->code : EOI_CODE);
@@ -705,7 +705,7 @@ write_compressed_data(Gif_Stream *gfs, Gif_Image *gfi,
   }
 
   /* Output memory buffer to stream. */
-  bufpos = (bufpos + 7) >> 3;
+    bufpos = (bufpos + 7) >> 3;
   buf[(bufpos - 1) & 0xFFFFFF00] = (bufpos - 1) & 0xFF;
   buf[bufpos] = 0;
   gifputblock(buf, bufpos + 1, grr);
@@ -1067,7 +1067,7 @@ write_gif(Gif_Stream *gfs, Gif_Writer *grr)
   int ok = 0;
   int i;
 
-  {
+{
     uint8_t isgif89a = 0;
     if (gfs->end_comment || gfs->end_extension_list || gfs->loopcount > -1)
       isgif89a = 1;
@@ -1077,10 +1077,10 @@ write_gif(Gif_Stream *gfs, Gif_Writer *grr)
           || gfi->delay || gfi->comment || gfi->extension_list)
         isgif89a = 1;
     }
-    if (isgif89a)
-      gifputblock((const uint8_t *)"GIF89a", 6, grr);
-    else
-      gifputblock((const uint8_t *)"GIF87a", 6, grr);
+  if (isgif89a)
+    gifputblock((const uint8_t *)"GIF89a", 6, grr);
+  else
+    gifputblock((const uint8_t *)"GIF87a", 6, grr);
   }
 
   write_logical_screen_descriptor(gfs, grr);
@@ -1093,7 +1093,7 @@ write_gif(Gif_Stream *gfs, Gif_Writer *grr)
       goto done;
 
   for (gfex = gfs->end_extension_list; gfex; gfex = gfex->next)
-    write_generic_extension(gfex, grr);
+      write_generic_extension(gfex, grr);
   if (gfs->end_comment)
     write_comment_extensions(gfs->end_comment, grr);
 
@@ -1114,23 +1114,23 @@ Gif_FullWriteFile(Gif_Stream *gfs, const Gif_CompressInfo *gcinfo,
            && write_gif(gfs, &grr);
   gif_writer_cleanup(&grr);
   return ok;
-}
+  }
 
 
-Gif_Writer*
+Gif_Writer *
 Gif_IncrementalWriteFileInit(Gif_Stream* gfs, const Gif_CompressInfo* gcinfo,
                              FILE *f)
 {
-    Gif_Writer* grr = Gif_New(Gif_Writer);
+  Gif_Writer *grr = Gif_New(Gif_Writer);
     if (!grr || !gif_writer_init(grr, f, gcinfo)) {
         Gif_Delete(grr);
-        return NULL;
-    }
+    return NULL;
+  }
     gifputblock((const uint8_t *)"GIF89a", 6, grr);
     write_logical_screen_descriptor(gfs, grr);
     if (gfs->loopcount > -1)
         write_netscape_loop_extension(gfs->loopcount, grr);
-    return grr;
+  return grr;
 }
 
 int
@@ -1146,7 +1146,7 @@ Gif_IncrementalWriteImage(Gif_Writer* grr, Gif_Stream* gfs, Gif_Image* gfi)
     if (gfi->transparent != -1 || gfi->disposal || gfi->delay)
         write_graphic_control_extension(gfi, grr);
     return write_image(gfs, gfi, grr);
-}
+  }
 
 int
 Gif_IncrementalWriteComplete(Gif_Writer* grr, Gif_Stream* gfs)
@@ -1160,7 +1160,7 @@ Gif_IncrementalWriteComplete(Gif_Writer* grr, Gif_Stream* gfs)
     gif_writer_cleanup(grr);
     Gif_Delete(grr);
     return 1;
-}
+  }
 
 
 #undef Gif_CompressImage
