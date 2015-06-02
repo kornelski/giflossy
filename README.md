@@ -46,6 +46,12 @@ use `./configure --disable-gifdiff`.
 (under /usr/local by default).
 
 
+Building Gifsicle on OS X
+-------------------------
+
+You'll need to install automake, perhaps via [homebrew](http://brew.sh/) (`brew install automake`) and then follow the instructions for UNIX above.
+
+
 Building Gifsicle on Windows
 ----------------------------
 
