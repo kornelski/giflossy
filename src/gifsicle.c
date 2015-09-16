@@ -760,18 +760,6 @@ input_stream(const char *name)
     add_frame(frames, gfs, gfs->images[i]);
   def_frame = old_def_frame;
 
-  if (unoptimizing)
-    if (!Gif_FullUnoptimize(gfs, GIF_UNOPTIMIZE_SIMPLEST_DISPOSAL)) {
-      static int context = 0;
-      if (!context) {
-        lwarning(name, "GIF too complex to unoptimize\n"
-                 "  (The reason was local color tables or complex transparency.\n"
-                 "  Try running the GIF through %<gifsicle --colors=255%> first.)");
-        context = 1;
-      } else
-        lwarning(name, "GIF too complex to unoptimize");
-    }
-
   apply_color_transforms(input_transforms, gfs);
   gfs->refcount++;
 
