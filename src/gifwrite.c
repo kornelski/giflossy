@@ -322,7 +322,6 @@ typedef struct Gif_LossySearch {
   Gif_YUVColor *col;
   Gif_Node *best_node; /* which node has been chosen by gfc_lookup_lossy */
   unsigned long best_pos; /* where the node ends */
-  unsigned long start_pos;
   unsigned long best_diff; /* what is the overall quality loss for that node */
   unsigned long max_diff;
 } Gif_LossySearch;
@@ -503,7 +502,6 @@ write_compressed_data(Gif_Stream *gfs, Gif_Image *gfi,
   Gif_LossySearch lossy_search = {
     .gfc = gfc,
     .col = col,
-    .start_pos = pos,
     .max_diff = grr->gcinfo.loss * 1000,
   };
   while (1) {
@@ -578,7 +576,7 @@ write_compressed_data(Gif_Stream *gfs, Gif_Image *gfi,
      * Find the next code to output. */
     if (grr->gcinfo.loss) {
       lossy_search.best_node = NULL;
-      lossy_search.best_pos = lossy_search.start_pos = pos;
+      lossy_search.best_pos = pos;
       lossy_search.best_diff = 0;
       gfc_lookup_lossy(gfi, pos, NULL, 0, (Gif_YUVDiff){0,0,0}, 0, &lossy_search);
 
