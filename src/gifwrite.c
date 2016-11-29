@@ -61,6 +61,10 @@ typedef struct Gif_Node {
 } Gif_Node;
 
 
+typedef struct Gif_YUVColor {
+  uint16_t y, u, v;
+} Gif_YUVColor;
+
 typedef struct Gif_CodeTable {
   Gif_Node *nodes;
   int nodes_pos;
@@ -205,10 +209,10 @@ gfc_lookup(Gif_CodeTable *gfc, Gif_Node *node, uint8_t suffix)
 }
 
 /* Used to hold accumulated error for the current candidate match */
-typedef struct gfc_rgbdiff {signed short r, g, b;} gfc_rgbdiff;
+typedef struct Gif_YUVDiff {int16_t y, u, v;} Gif_YUVDiff;
 
 /* Difference (MSE) between given color indexes + dithering error */
-static inline unsigned int color_diff(Gif_Color a, Gif_Color b, int a_transaprent, int b_transparent, gfc_rgbdiff dither)
+static inline unsigned int color_diff(Gif_YUVColor a, Gif_YUVColor b, int a_transaprent, int b_transparent, Gif_YUVDiff dither)
 {
   /* if one is transparent and the other is not, then return maximum difference */
   /* TODO: figure out what color is in the canvas under the transparent pixel and match against that */
@@ -218,27 +222,27 @@ static inline unsigned int color_diff(Gif_Color a, Gif_Color b, int a_transapren
   if (a_transaprent) return 0;
 
   /* squared error with or without dithering. */
-  unsigned int dith = (a.gfc_red-b.gfc_red+dither.r)*(a.gfc_red-b.gfc_red+dither.r)
-  + (a.gfc_green-b.gfc_green+dither.g)*(a.gfc_green-b.gfc_green+dither.g)
-  + (a.gfc_blue-b.gfc_blue+dither.b)*(a.gfc_blue-b.gfc_blue+dither.b);
+  unsigned int dith = (a.y-b.y+dither.y)*(a.y-b.y+dither.y)
+  + (a.u-b.u+dither.u)*(a.u-b.u+dither.u)
+  + (a.v-b.v+dither.v)*(a.v-b.v+dither.v);
 
-  unsigned int undith = (a.gfc_red-b.gfc_red+dither.r/2)*(a.gfc_red-b.gfc_red+dither.r/2)
-  + (a.gfc_green-b.gfc_green+dither.g/2)*(a.gfc_green-b.gfc_green+dither.g/2)
-  + (a.gfc_blue-b.gfc_blue+dither.b/2)*(a.gfc_blue-b.gfc_blue+dither.b/2);
+  unsigned int undith = (a.y-b.y+dither.y/2)*(a.y-b.y+dither.y/2)
+  + (a.u-b.u+dither.u/2)*(a.u-b.u+dither.u/2)
+  + (a.v-b.v+dither.v/2)*(a.v-b.v+dither.v/2);
 
   /* Smaller error always wins, under assumption that dithering is not required and it's only done opportunistically */
   return dith < undith ? dith : undith;
 }
 
 /* difference between expected color a+dither and color b (used to calculate dithering required) */
-static inline gfc_rgbdiff diffused_difference(Gif_Color a, Gif_Color b, int a_transaprent, int b_transaprent, gfc_rgbdiff dither)
+static inline Gif_YUVDiff diffused_difference(Gif_YUVColor a, Gif_YUVColor b, int a_transaprent, int b_transaprent, Gif_YUVDiff dither)
 {
-  if (a_transaprent || b_transaprent) return (gfc_rgbdiff){0,0,0};
+  if (a_transaprent || b_transaprent) return (Gif_YUVDiff){0,0,0};
 
-  return (gfc_rgbdiff) {
-    a.gfc_red - b.gfc_red + dither.r * 3/4,
-    a.gfc_green - b.gfc_green + dither.g * 3/4,
-    a.gfc_blue - b.gfc_blue + dither.b * 3/4,
+  return (Gif_YUVDiff) {
+    a.y - b.y + dither.y * 3/4,
+    a.u - b.u + dither.u * 3/4,
+    a.v - b.v + dither.v * 3/4,
   };
 }
 
@@ -320,16 +324,16 @@ struct selected_node {
 };
 
 static inline void
-gfc_lookup_lossy_try_node(Gif_CodeTable *gfc, const Gif_Color *col, Gif_Image *gfi,
-  unsigned pos, Gif_Node *node, uint8_t suffix, uint8_t next_suffix,
-  gfc_rgbdiff dither, unsigned long base_diff, const unsigned int max_diff, struct selected_node *best_t);
+gfc_lookup_lossy_try_node(Gif_CodeTable *gfc, const Gif_YUVColor *col, Gif_Image *gfi,
+  unsigned pos, Gif_Node *node, uint8_t suffix, uint8_t try_suffix,
+  Gif_YUVDiff dither, unsigned long base_diff, const unsigned int max_diff, int run_of_the_same_color, struct selected_node *best_t);
 
 /* Recursive loop
  * Find node that is descendant of node (or start new search if work_node is null) that best matches pixels starting at pos
  * base_diff and dither are distortion from search made so far */
 static struct selected_node
-gfc_lookup_lossy(Gif_CodeTable *gfc, const Gif_Color *col, Gif_Image *gfi,
-  unsigned pos, Gif_Node *node, unsigned long base_diff, gfc_rgbdiff dither, const unsigned int max_diff)
+gfc_lookup_lossy(Gif_CodeTable *gfc, const Gif_YUVColor *col, Gif_Image *gfi,
+  unsigned pos, Gif_Node *node, unsigned long base_diff, Gif_YUVDiff dither, int run_of_the_same_color, const unsigned int max_diff)
 {
   unsigned image_endpos = gfi->width * gfi->height;
 
@@ -337,11 +341,14 @@ gfc_lookup_lossy(Gif_CodeTable *gfc, const Gif_Color *col, Gif_Image *gfi,
   if (pos >= image_endpos) return best_t;
 
   uint8_t suffix = gif_pixel_at_pos(gfi, pos);
+  uint8_t next_suffix = gif_pixel_at_pos(gfi, pos+1 >= image_endpos ? pos : pos+1);
+  if (suffix == next_suffix) run_of_the_same_color++; else run_of_the_same_color >>= 1;
+
   assert(!node || (node >= gfc->nodes && node < gfc->nodes + NODES_SIZE));
   assert(suffix < gfc->clear_code);
   if (!node) {
     /* prefix of the new node must be same as suffix of previously added node */
-    return gfc_lookup_lossy(gfc, col, gfi, pos+1, &gfc->nodes[suffix], base_diff, (gfc_rgbdiff){0,0,0}, max_diff);
+    return gfc_lookup_lossy(gfc, col, gfi, pos+1, &gfc->nodes[suffix], base_diff, (Gif_YUVDiff){0,0,0}, run_of_the_same_color, max_diff);
   }
 
   /* search all nodes that are less than max_diff different from the desired pixel */
@@ -349,12 +356,12 @@ gfc_lookup_lossy(Gif_CodeTable *gfc, const Gif_Color *col, Gif_Image *gfi,
     int i;
     for(i=0; i < gfc->clear_code; i++) {
       if (!node->child.m[i]) continue;
-      gfc_lookup_lossy_try_node(gfc, col, gfi, pos, node->child.m[i], suffix, i, dither, base_diff, max_diff, &best_t);
+      gfc_lookup_lossy_try_node(gfc, col, gfi, pos, node->child.m[i], suffix, i, dither, base_diff, max_diff, run_of_the_same_color, &best_t);
     }
   }
   else {
     for (node = node->child.s; node; node = node->sibling) {
-      gfc_lookup_lossy_try_node(gfc, col, gfi, pos, node, suffix, node->suffix, dither, base_diff, max_diff, &best_t);
+      gfc_lookup_lossy_try_node(gfc, col, gfi, pos, node, suffix, node->suffix, dither, base_diff, max_diff, run_of_the_same_color, &best_t);
     }
   }
 
@@ -366,22 +373,32 @@ gfc_lookup_lossy(Gif_CodeTable *gfc, const Gif_Color *col, Gif_Image *gfi,
  *
  * @param node        Current node to search
  * @param suffix      Previous pixel
- * @param next_suffix Next pixel to evaluate (must correspond to the node given)
+ * @param try_suffix  Next pixel to evaluate (must correspond to the node given)
  * @param dither      Desired dithering
  * @param base_diff   Difference accumulated in the search so far
  * @param max_diff    Maximum allowed pixel difference
  * @param best_t      Current best candidate (input/output argument)
  */
 static inline void
-gfc_lookup_lossy_try_node(Gif_CodeTable *gfc, const Gif_Color *col, Gif_Image *gfi,
-  unsigned pos, Gif_Node *node, uint8_t suffix, uint8_t next_suffix,
-  gfc_rgbdiff dither, unsigned long base_diff, const unsigned int max_diff, struct selected_node *best_t)
+gfc_lookup_lossy_try_node(Gif_CodeTable *gfc, const Gif_YUVColor *col, Gif_Image *gfi,
+  unsigned pos, Gif_Node *node, uint8_t suffix, uint8_t try_suffix,
+  Gif_YUVDiff dither, unsigned long base_diff, const unsigned int max_diff, int run_of_the_same_color, struct selected_node *best_t)
 {
-  unsigned int diff = suffix == next_suffix ? 0 : color_diff(col[suffix], col[next_suffix], suffix == gfi->transparent, next_suffix == gfi->transparent, dither);
+  unsigned int diff;
+  if (suffix == try_suffix) {
+    diff = 0;
+  } else {
+    diff = color_diff(col[suffix], col[try_suffix], suffix == gfi->transparent, try_suffix == gfi->transparent, dither);
+  }
+  if (run_of_the_same_color >= 8) {
+    diff *= 2;
+    if (run_of_the_same_color >= 16) diff *= 4;
+  }
+
   if (diff <= max_diff) {
-    gfc_rgbdiff new_dither = diffused_difference(col[suffix], col[next_suffix], suffix == gfi->transparent, next_suffix == gfi->transparent, dither);
+    Gif_YUVDiff new_dither = diffused_difference(col[suffix], col[try_suffix], suffix == gfi->transparent, try_suffix == gfi->transparent, dither);
     /* if the candidate pixel is good enough, check all possible continuations of that dictionary string */
-    struct selected_node t = gfc_lookup_lossy(gfc, col, gfi, pos+1, node, base_diff + diff, new_dither, max_diff);
+    struct selected_node t = gfc_lookup_lossy(gfc, col, gfi, pos+1, node, base_diff + diff, new_dither, run_of_the_same_color, max_diff);
 
     /* search is biased towards finding longest candidate that is below treshold rather than a match with minimum average error */
     if (t.pos > best_t->pos || (t.pos == best_t->pos && t.diff < best_t->diff)) {
@@ -398,6 +415,13 @@ gif_pixel_at_pos(Gif_Image *gfi, unsigned pos)
     return gfi->img[y][x];
   else
     return gfi->img[Gif_InterlaceLine(y, gfi->height)][x];
+}
+
+#include <math.h>
+
+static double rgb8_to_linear(uint8_t c)
+{
+  return c >= 11 ? pow(c * (40.0 / 10761.0) + (11.0 / 211.0), 2.4) : c * (5.0 / 16473.0);
 }
 
 static int
@@ -448,12 +472,28 @@ write_compressed_data(Gif_Stream *gfs, Gif_Image *gfi,
   Gif_Colormap *gfcm;
 
   pos = clear_pos = clear_bufpos = 0;
+  gfcm = (gfi->local ? gfi->local : gfs->global);
   if (grr->gcinfo.loss) {
     image_endpos = gfi->height * gfi->width;
-    gfcm = (gfi->local ? gfi->local : gfs->global);
   } else {
     line_endpos = gfi->width;
     imageline = gif_imageline(gfi, pos);
+  }
+
+  Gif_YUVColor col[gfcm->ncol];
+  for(int i=0; i < gfcm->ncol; i++) {
+    double R = rgb8_to_linear(gfcm->col[i].gfc_red);
+    double G = rgb8_to_linear(gfcm->col[i].gfc_green);
+    double B = rgb8_to_linear(gfcm->col[i].gfc_blue);
+
+    double y = pow(R * 0.2126 + G * 0.7152 + B * 0.0722, 1.0/1.7);
+    double u = 0.5 + (R * -115867.0/1159750.0 + G * -194892.0/579875.0 + B * 0.436);
+    double v = 0.5 + (R * 0.615  + G * -54981.0/98425.0 + B * -44403.0/787400.0);
+
+    // Arbitrary fudge factors
+    col[i].y = 4600.0 * y;
+    col[i].u = 2000.0 * u;
+    col[i].v = 2000.0 * v;
   }
 
   while (1) {
@@ -527,7 +567,7 @@ write_compressed_data(Gif_Stream *gfs, Gif_Image *gfi,
     /*****
      * Find the next code to output. */
     if (grr->gcinfo.loss) {
-      struct selected_node t = gfc_lookup_lossy(gfc, gfcm->col, gfi, pos, NULL, 0, (gfc_rgbdiff){0,0,0}, grr->gcinfo.loss * 10);
+      struct selected_node t = gfc_lookup_lossy(gfc, col, gfi, pos, NULL, 0, (Gif_YUVDiff){0,0,0}, 0, grr->gcinfo.loss * 1000);
 
       work_node = t.node;
       run = t.pos - pos;
