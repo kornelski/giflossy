@@ -197,6 +197,7 @@ static const char *output_option_types[] = {
 #define SAME_APP_EXTENSIONS_OPT 373
 #define IGNORE_ERRORS_OPT       374
 #define THREADS_OPT             375
+#define LOSSY_OPT               376
 
 #define LOOP_TYPE               (Clp_ValFirstUser)
 #define DISPOSAL_TYPE           (Clp_ValFirstUser + 1)
@@ -264,6 +265,7 @@ const Clp_Option options[] = {
 
   { "logical-screen", 'S', LOGICAL_SCREEN_OPT, DIMENSIONS_TYPE, Clp_Negate },
   { "loopcount", 'l', 'l', LOOP_TYPE, Clp_Optional | Clp_Negate },
+  { "lossy", 0, LOSSY_OPT, Clp_ValInt, Clp_Optional },
 
   { "merge", 'm', 'm', 0, 0 },
   { "method", 0, COLORMAP_ALGORITHM_OPT, COLORMAP_ALG_TYPE, 0 },
@@ -1944,6 +1946,13 @@ main(int argc, char *argv[])
       }
       break;
 
+    case LOSSY_OPT:
+      if (clp->have_val)
+        gif_write_info.loss = clp->val.i;
+      else
+        gif_write_info.loss = 20;
+      break;
+
       /* RANDOM OPTIONS */
 
      case NO_WARNINGS_OPT:
@@ -1987,7 +1996,7 @@ main(int argc, char *argv[])
 #else
       printf("LCDF Gifsicle %s\n", VERSION);
 #endif
-      printf("Copyright (C) 1997-2014 Eddie Kohler\n\
+      printf("Copyright (C) 1997-2014 Eddie Kohler and Kornel Lesinski\n\
 This is free software; see the source for copying conditions.\n\
 There is NO warranty, not even for merchantability or fitness for a\n\
 particular purpose.\n");

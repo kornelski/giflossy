@@ -220,6 +220,8 @@ Whole-GIF options: Also --no-OPTION.\n\
       --gamma G                 Set gamma for color reduction [2.2].\n");
 #endif
   printf("\
+      --lossy[=STRENGTH]        Order pixel patterns to create smaller\n\
+                                GIFs at cost of artifacts and noise.\n\
       --resize WxH              Resize the output GIF to WxH.\n\
       --resize-width W          Resize to width W and proportional height.\n\
       --resize-height H         Resize to height H and proportional width.\n\
@@ -232,7 +234,7 @@ Whole-GIF options: Also --no-OPTION.\n\
       --use-colormap CMAP       Set output GIF's colormap to CMAP, which can\n\
                                 be 'web', 'gray', 'bw', or a GIF file.\n\n");
   printf("\
-Report bugs to <ekohler@gmail.com>.\n\
+Report bugs to <kornel@geekhood.com>.\n\
 Too much information? Try '%s --help | more'.\n", program_name);
 #ifdef GIF_UNGIF
   printf("\
