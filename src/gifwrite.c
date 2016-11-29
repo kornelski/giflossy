@@ -414,11 +414,12 @@ gfc_lookup_lossy_try_node(Gif_Image *gfi,
 static inline uint8_t
 gif_pixel_at_pos(Gif_Image *gfi, unsigned pos)
 {
-  unsigned y = pos / gfi->width, x = pos - y * gfi->width;
   if (!gfi->interlace)
-    return gfi->img[y][x];
-  else
+    return gfi->image_data[pos];
+  else {
+    unsigned y = pos / gfi->width, x = pos - y * gfi->width;
     return gfi->img[Gif_InterlaceLine(y, gfi->height)][x];
+  }
 }
 
 #include <math.h>
