@@ -2,7 +2,10 @@
 
 Gifsicle
 ========
-[![TravisCI status](https://travis-ci.org/kohler/gifsicle.svg?branch=master)](https://travis-ci.org/kohler/gifsicle)
+
+This is a fork of Gifsicle with [lossy compression option](https://github.com/kohler/gifsicle/pull/16).
+
+---
 
 Gifsicle manipulates GIF image files. Depending on command line
 options, it can merge several GIFs into a GIF animation; explode an
@@ -107,7 +110,7 @@ run-length-encoded GIFs.
 Copyright/License
 -----------------
 
-All source code is Copyright (C) 1997-2014 Eddie Kohler.
+© 1997-2014 Eddie Kohler and contributors
 
 IF YOU PLAN TO USE GIFSICLE ONLY TO CREATE OR MODIFY GIF IMAGES, DON'T
 WORRY ABOUT THE REST OF THIS SECTION. Anyone can use Gifsicle however
@@ -143,6 +146,10 @@ He wrote it.
 Anne Dudfield <anne@mazunetworks.com>
 http://www.frii.com/~annied/
 She named it.
+
+Kornel Lesiński <github@pornel.net>
+https://kornel.ski
+Lossy compression.
 
 David Hedbor <david@hedbor.org>
 Many bug reports and constructive whining about the optimizer.
