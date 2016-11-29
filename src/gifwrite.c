@@ -25,7 +25,7 @@ extern "C" {
 
 #define WRITE_BUFFER_SIZE	255
 #define NODES_SIZE		GIF_MAX_CODE
-#define LINKS_SIZE		GIF_MAX_CODE
+#define LINKS_SIZE		(GIF_MAX_CODE/2)
 
 /* 1.Aug.1999 - Removed code hashing in favor of an adaptive tree strategy
    based on Whirlgif-3.04, written by Hans Dinsen-Hansen <dino@danbbs.dk>. Mr.
@@ -48,7 +48,7 @@ extern "C" {
 
 #define TABLE_TYPE		0
 #define LINKS_TYPE		1
-#define MAX_LINKS_TYPE		5
+#define MAX_LINKS_TYPE		32
 typedef struct Gif_Node {
   Gif_Code code;
   uint8_t type;
@@ -362,16 +362,15 @@ gfc_lookup_lossy(Gif_Image *gfi,
   }
 
   /* search all nodes that are less than max_diff different from the desired pixel */
-  if (node->type == TABLE_TYPE) {
+  if (node->type != TABLE_TYPE) {
+    for (node = node->child.s; node; node = node->sibling) {
+      gfc_lookup_lossy_try_node(gfi, pos, node, suffix, node->suffix, dither, base_diff, run_of_the_same_color, search);
+    }
+  } else {
     int i, end = search->gfc->clear_code;
     for(i=0; i < end; i++) {
       if (!node->child.m[i]) continue;
       gfc_lookup_lossy_try_node(gfi, pos, node->child.m[i], suffix, i, dither, base_diff, run_of_the_same_color, search);
-    }
-  }
-  else {
-    for (node = node->child.s; node; node = node->sibling) {
-      gfc_lookup_lossy_try_node(gfi, pos, node, suffix, node->suffix, dither, base_diff, run_of_the_same_color, search);
     }
   }
 }
