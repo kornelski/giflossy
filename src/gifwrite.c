@@ -509,9 +509,9 @@ write_compressed_data(Gif_Stream *gfs, Gif_Image *gfi,
     double v = 0.5 + (R * 0.615  + G * -54981.0/98425.0 + B * -44403.0/787400.0);
 
     // Arbitrary fudge factors
-    col[i].y = 4600.0 * y;
-    col[i].u = 2000.0 * u;
-    col[i].v = 2000.0 * v;
+    col[i].y = 5000.0 * y;
+    col[i].u = 2100.0 * u;
+    col[i].v = 2200.0 * v;
   }
 
   Gif_LossySearch lossy_search = {
