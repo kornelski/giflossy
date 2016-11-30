@@ -324,6 +324,9 @@ typedef struct Gif_LossySearch {
   unsigned long best_pos; /* where the node ends */
   unsigned long best_diff; /* what is the overall quality loss for that node */
   unsigned long max_diff;
+  Gif_Node *best_node2; /* which node has been chosen by gfc_lookup_lossy */
+  unsigned long best_pos2; /* where the node ends */
+  unsigned long best_diff2; /* what is the overall quality loss for that node */
 } Gif_LossySearch;
 
 static inline void
@@ -338,11 +341,23 @@ static void
 gfc_lookup_lossy(Gif_Image *gfi,
   unsigned pos, Gif_Node *node, unsigned long base_diff, Gif_YUVDiff dither, int run_of_the_same_color, Gif_LossySearch *search)
 {
-  /* search is biased towards finding longest candidate that is below treshold rather than a match with minimum average error */
-  if (pos > search->best_pos || (pos == search->best_pos && base_diff < search->best_diff)) {
-    search->best_node = node;
-    search->best_pos = pos;
-    search->best_diff = base_diff;
+  if (pos >= search->best_pos) {
+    /* search is biased towards finding longest candidate that is below treshold rather than a match with minimum average error */
+    if (pos > search->best_pos || base_diff < search->best_diff) {
+      if (pos > search->best_pos) {
+        search->best_node2 = search->best_node;
+        search->best_pos2 = search->best_pos;
+        search->best_diff2 = search->best_diff;
+      }
+
+      search->best_node = node;
+      search->best_pos = pos;
+      search->best_diff = base_diff;
+    } else if (base_diff < search->best_diff2) {
+      search->best_node2 = node;
+      search->best_pos2 = pos;
+      search->best_diff2 = base_diff;
+    }
   }
 
   unsigned image_endpos = gfi->width * gfi->height;
@@ -578,7 +593,18 @@ write_compressed_data(Gif_Stream *gfs, Gif_Image *gfi,
       lossy_search.best_node = NULL;
       lossy_search.best_pos = pos;
       lossy_search.best_diff = 0;
+      lossy_search.best_node2 = NULL;
+      lossy_search.best_diff2 = 0;
       gfc_lookup_lossy(gfi, pos, NULL, 0, (Gif_YUVDiff){0,0,0}, 0, &lossy_search);
+
+      if (lossy_search.best_node2) {
+        int len = (lossy_search.best_pos - pos);
+        if ((!lossy_search.best_diff2 && lossy_search.best_diff > lossy_search.max_diff)
+            || (len > 7 && lossy_search.best_diff2 < (double)lossy_search.best_diff*len/(len+4))) {
+            lossy_search.best_node = lossy_search.best_node2;
+            lossy_search.best_pos = lossy_search.best_pos2;
+        }
+      }
 
       work_node = lossy_search.best_node;
       run = lossy_search.best_pos - pos;
