@@ -1137,7 +1137,7 @@ Version 0.91	15.Jun.1997
   area correctly. This could lead to incorrect animations. Specific change:
   merge.c line 744: was y < fbt, now y <= fbt.
 
-* Added `-S' as synonym for `--logical-screen'. 
+* Added `-S' as synonym for `--logical-screen'.
 
 
 Version 0.9	12.Jun.1997
