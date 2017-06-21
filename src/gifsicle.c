@@ -44,6 +44,7 @@ Gif_CompressInfo gif_write_info;
 
 static int frames_done = 0;
 static int files_given = 0;
+static int last_frame_delay = 0;
 
 int warn_local_colormaps = 1;
 
@@ -198,6 +199,7 @@ static const char *output_option_types[] = {
 #define IGNORE_ERRORS_OPT       374
 #define THREADS_OPT             375
 #define LOSSY_OPT               376
+#define LAST_DELAY_OPT          377
 
 #define LOOP_TYPE               (Clp_ValFirstUser)
 #define DISPOSAL_TYPE           (Clp_ValFirstUser + 1)
@@ -263,6 +265,7 @@ const Clp_Option options[] = {
   { "insert-before", 0, INSERT_OPT, FRAME_SPEC_TYPE, 0 },
   { "interlace", 'i', 'i', 0, Clp_Negate },
 
+  { "last-delay", 0, LAST_DELAY_OPT, Clp_ValInt, Clp_Negate },
   { "logical-screen", 'S', LOGICAL_SCREEN_OPT, DIMENSIONS_TYPE, Clp_Negate },
   { "loopcount", 'l', 'l', LOOP_TYPE, Clp_Optional | Clp_Negate },
   { "lossy", 0, LOSSY_OPT, Clp_ValInt, Clp_Optional },
@@ -756,8 +759,11 @@ input_stream(const char *name)
   old_def_frame = def_frame;
   first_input_frame = frames->count;
   def_frame.position_is_offset = 1;
-  for (i = 0; i < gfs->nimages; i++)
-    add_frame(frames, gfs, gfs->images[i]);
+  for (i = 0; i < gfs->nimages; i++) {
+    if (last_frame_delay && i == gfs->nimages-1)
+      def_frame.delay = last_frame_delay;
+    add_frame(frames, gfs, gfs->images[i]);    
+  }
   def_frame = old_def_frame;
 
   if (unoptimizing)
@@ -1711,6 +1717,10 @@ main(int argc, char *argv[])
      case SAME_DELAY_OPT:
       def_frame.delay = -1;
       break;
+      
+      case LAST_DELAY_OPT:
+      last_frame_delay = clp->negated ? 0 : clp->val.i;
+      break;      
 
      case DISPOSAL_OPT:
       MARK_CH(frame, CH_DISPOSAL);
