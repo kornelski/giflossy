@@ -1,5 +1,5 @@
 /* giffunc.c - General functions for the GIF library.
-   Copyright (C) 1997-2014 Eddie Kohler, ekohler@gmail.com
+   Copyright (C) 1997-2017 Eddie Kohler, ekohler@gmail.com
    This file is part of the LCDF GIF library.
 
    The LCDF GIF library is free software. It is distributed under the GNU
@@ -33,7 +33,7 @@ Gif_NewStream(void)
   gfs->end_comment = 0;
   gfs->end_extension_list = 0;
   gfs->errors = 0;
-  gfs->userflags = 0;
+  gfs->user_flags = 0;
   gfs->refcount = 0;
   gfs->landmark = 0;
   return gfs;
@@ -61,6 +61,7 @@ Gif_NewImage(void)
   gfi->extension_list = 0;
   gfi->free_image_data = Gif_Free;
   gfi->compressed_len = 0;
+  gfi->compressed_errors = 0;
   gfi->compressed = 0;
   gfi->free_compressed = 0;
   gfi->user_data = 0;
@@ -80,7 +81,7 @@ Gif_NewColormap(void)
   gfcm->capacity = 0;
   gfcm->col = 0;
   gfcm->refcount = 0;
-  gfcm->userflags = 0;
+  gfcm->user_flags = 0;
   return gfcm;
 }
 
@@ -99,7 +100,7 @@ Gif_NewFullColormap(int count, int capacity)
   gfcm->capacity = capacity;
   gfcm->col = Gif_NewArray(Gif_Color, capacity);
   gfcm->refcount = 0;
-  gfcm->userflags = 0;
+  gfcm->user_flags = 0;
   if (!gfcm->col) {
     Gif_Delete(gfcm);
     return 0;
@@ -457,6 +458,7 @@ Gif_CopyImage(Gif_Image *src)
       memcpy(dest->compressed, src->compressed, src->compressed_len);
     }
     dest->compressed_len = src->compressed_len;
+    dest->compressed_errors = src->compressed_errors;
   }
 
   return dest;
@@ -703,6 +705,7 @@ Gif_ReleaseCompressedImage(Gif_Image *gfi)
     (*gfi->free_compressed)(gfi->compressed);
   gfi->compressed = 0;
   gfi->compressed_len = 0;
+  gfi->compressed_errors = 0;
   gfi->free_compressed = 0;
 }
 

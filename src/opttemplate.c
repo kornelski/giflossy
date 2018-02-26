@@ -1,5 +1,5 @@
 /* opttemplate.c - Functions to optimize animated GIFs.
-   Copyright (C) 1997-2014 Eddie Kohler, ekohler@gmail.com
+   Copyright (C) 1997-2017 Eddie Kohler, ekohler@gmail.com
    This file is part of gifsicle.
 
    Gifsicle is free software. It is distributed under the GNU Public License,
@@ -146,8 +146,9 @@ X(apply_frame)(palindex_type *dst, Gif_Stream* gfs, Gif_Image* gfi,
   for (i = 0; i < colormap->ncol; i++)
     map[i] = colormap->col[i].pixel;
   /* out-of-bounds colors map to 0, for the sake of argument */
+  y = colormap->ncol ? colormap->col[0].pixel : 0;
   for (i = colormap->ncol; i < 256; i++)
-    map[i] = colormap->col[0].pixel;
+    map[i] = y;
   if (gfi->transparent >= 0 && gfi->transparent < 256)
     map[gfi->transparent] = TRANSP;
   else
@@ -856,7 +857,7 @@ X(transp_frame_data)(Gif_Stream *gfs, Gif_Image *gfi, uint8_t *map,
 static void
 X(create_new_image_data)(Gif_Stream *gfs, int optimize_flags)
 {
-  Gif_Image cur_unopt_gfi;      /* placehoder; maintains pre-optimization
+  Gif_Image cur_unopt_gfi;      /* placeholder; maintains pre-optimization
                                    image size so we can apply background
                                    disposal */
   unsigned screen_size = (unsigned) screen_width * (unsigned) screen_height;

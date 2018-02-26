@@ -1,6 +1,6 @@
 /* -*- c-basic-offset: 2 -*- */
 /* gifsicle.c - gifsicle's main loop.
-   Copyright (C) 1997-2014 Eddie Kohler, ekohler@gmail.com
+   Copyright (C) 1997-2017 Eddie Kohler, ekohler@gmail.com
    This file is part of gifsicle.
 
    Gifsicle is free software. It is distributed under the GNU Public License,
@@ -1064,13 +1064,13 @@ output_information(const char *outfile)
   }
 
   for (i = 0; i < frames->count; i++)
-    FRAME(frames, i).stream->userflags = 97;
+    FRAME(frames, i).stream->user_flags = 97;
 
   for (i = 0; i < frames->count; i++)
-    if (FRAME(frames, i).stream->userflags == 97) {
+    if (FRAME(frames, i).stream->user_flags == 97) {
       fr = &FRAME(frames, i);
       gfs = fr->stream;
-      gfs->userflags = 0;
+      gfs->user_flags = 0;
       stream_info(f, gfs, fr->input_filename, fr->info_flags);
       for (j = i; j < frames->count; j++)
         if (FRAME(frames, j).stream == gfs) {
@@ -2125,7 +2125,7 @@ main(int argc, char *argv[])
 #else
       printf("LCDF Gifsicle %s\n", VERSION);
 #endif
-      printf("Copyright (C) 1997-2014 Eddie Kohler and Kornel Lesinski\n\
+      printf("Copyright (C) 1997-2017 Eddie Kohler and Kornel Lesinski\n\
 This is free software; see the source for copying conditions.\n\
 There is NO warranty, not even for merchantability or fitness for a\n\
 particular purpose.\n");

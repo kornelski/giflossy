@@ -1,5 +1,5 @@
 /* gifread.c - Functions to read GIFs.
-   Copyright (C) 1997-2015 Eddie Kohler, ekohler@gmail.com
+   Copyright (C) 1997-2017 Eddie Kohler, ekohler@gmail.com
    This file is part of the LCDF GIF library.
 
    The LCDF GIF library is free software. It is distributed under the GNU
@@ -373,6 +373,7 @@ read_image_data(Gif_Context *gfc, Gif_Reader *grr)
           sprintf(buf, "missing %ld %s of image data", delta,
                   delta == 1 ? "pixel" : "pixels");
           gif_read_error(gfc, 1, buf);
+          memset(&gfc->image[gfc->decodepos], 0, delta);
       } else if (delta < -1) {
           /* One pixel of superfluous data is OK; that could be the
              code == next_code case. */
@@ -448,6 +449,7 @@ read_compressed_image(Gif_Image *gfi, Gif_Reader *grr, int read_flags)
         grr->pos = grr->length;
 
     gfi->compressed_len = grr->pos - image_pos;
+    gfi->compressed_errors = 0;
     if (read_flags & GIF_READ_CONST_RECORD) {
       gfi->compressed = (uint8_t*) &grr->v[image_pos];
       gfi->free_compressed = 0;
@@ -487,8 +489,9 @@ read_compressed_image(Gif_Image *gfi, Gif_Reader *grr, int read_flags)
     }
     comp[comp_len++] = 0;
 
-    gfi->compressed = comp;
     gfi->compressed_len = comp_len;
+    gfi->compressed_errors = 0;
+    gfi->compressed = comp;
     gfi->free_compressed = Gif_Free;
   }
 
@@ -499,13 +502,16 @@ read_compressed_image(Gif_Image *gfi, Gif_Reader *grr, int read_flags)
 static int
 uncompress_image(Gif_Context *gfc, Gif_Image *gfi, Gif_Reader *grr)
 {
+    int old_nerrors;
     if (!Gif_CreateUncompressedImage(gfi, gfi->interlace))
         return 0;
     gfc->width = gfi->width;
     gfc->height = gfi->height;
     gfc->image = gfi->image_data;
     gfc->maximage = gfi->image_data + (unsigned) gfi->width * (unsigned) gfi->height;
+    old_nerrors = gfc->errors[1];
     read_image_data(gfc, grr);
+    gfi->compressed_errors = gfc->errors[1] - old_nerrors;
     return 1;
 }
 
