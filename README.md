@@ -85,32 +85,10 @@ Eddie Kohler, ekohler@gmail.com
 http://www.read.seas.harvard.edu/~kohler/
 
 
-The GIF Patents and UnGIFs
---------------------------
-
-Patents formerly restricted use of the Lempel-Ziv-Welch compression
-algorithm used in GIFs. As of October 1, 2006, it is believed (by the
-Software Freedom Law Center and the Free Software Foundation, among
-others) that there are no significant patent claims interfering with
-employment of the GIF format. For that reason, Gifsicle is completely
-free software.
-
-Nonetheless, Gifsicle can be configured to write run-length-encoded
-GIFs, rather than LZW-compressed GIFs, avoiding these obsolete
-patents. This idea was first implemented independently by Toshio
-Kuratomi <badger@prtr-13.ucsc.edu> and Hutchison Avenue Software
-Corporation (http://www.hasc.com/, <info@hasc.com>). Turn this on by
-giving `./configure` the `--enable-ungif` switch. Now that the patents
-have expired there is no good reason to turn on this switch, which can
-make GIFs a factor of 2 larger or more. If your copy of Gifsicle says
-`(ungif)` when you run `gifsicle --version`, it is writing
-run-length-encoded GIFs.
-
-
 Copyright/License
 -----------------
 
-© 1997-2017 Eddie Kohler and contributors
+© 1997-2018 Eddie Kohler and contributors
 
 IF YOU PLAN TO USE GIFSICLE ONLY TO CREATE OR MODIFY GIF IMAGES, DON'T
 WORRY ABOUT THE REST OF THIS SECTION. Anyone can use Gifsicle however

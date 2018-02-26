@@ -1,5 +1,5 @@
 /* giffunc.c - General functions for the GIF library.
-   Copyright (C) 1997-2017 Eddie Kohler, ekohler@gmail.com
+   Copyright (C) 1997-2018 Eddie Kohler, ekohler@gmail.com
    This file is part of the LCDF GIF library.
 
    The LCDF GIF library is free software. It is distributed under the GNU
@@ -226,7 +226,7 @@ Gif_RemoveImage(Gif_Stream *gfs, int inum)
 int
 Gif_ImageColorBound(const Gif_Image* gfi)
 {
-    if (gfi->compressed)
+    if (gfi->compressed && gfi->compressed[0] > 0 && gfi->compressed[0] < 8)
         return 1 << gfi->compressed[0];
     else
         return 256;

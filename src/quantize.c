@@ -1,5 +1,5 @@
 /* quantize.c - Histograms and quantization for gifsicle.
-   Copyright (C) 1997-2017 Eddie Kohler, ekohler@gmail.com
+   Copyright (C) 1997-2018 Eddie Kohler, ekohler@gmail.com
    This file is part of gifsicle.
 
    Gifsicle is free software. It is distributed under the GNU Public License,
@@ -1001,7 +1001,7 @@ int kd3_closest_transformed(kd3_tree* kd3, const kcolor* k,
         } else {
             int delta = k->a[stackpos % 3] - p->pivot;
             if (state[stackpos] == 1
-                && (unsigned) (delta * delta) < mindist) {
+                && (unsigned) delta * (unsigned) delta < mindist) {
                 if (delta < 0)
                     stack[stackpos + 1] = p + p->offset;
                 else

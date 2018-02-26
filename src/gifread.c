@@ -1,5 +1,5 @@
 /* gifread.c - Functions to read GIFs.
-   Copyright (C) 1997-2017 Eddie Kohler, ekohler@gmail.com
+   Copyright (C) 1997-2018 Eddie Kohler, ekohler@gmail.com
    This file is part of the LCDF GIF library.
 
    The LCDF GIF library is free software. It is distributed under the GNU
@@ -900,6 +900,7 @@ read_gif(Gif_Reader *grr, int read_flags,
   Gif_DeleteArray(gfc.suffix);
   Gif_DeleteArray(gfc.length);
   gfc.gfi = 0;
+  last_name = 0;
 
   if (gfs)
     gfs->errors = gfc.errors[1];

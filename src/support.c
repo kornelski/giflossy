@@ -1,5 +1,5 @@
 /* support.c - Support functions for gifsicle.
-   Copyright (C) 1997-2017 Eddie Kohler, ekohler@gmail.com
+   Copyright (C) 1997-2018 Eddie Kohler, ekohler@gmail.com
    This file is part of gifsicle.
 
    Gifsicle is free software. It is distributed under the GNU Public License,
@@ -1407,7 +1407,7 @@ analyze_crop(int nmerger, Gt_Crop* crop, int compress_immediately)
           }
 
         found_right:
-          if (compress_immediately > 0)
+          if (compress_immediately > 0 && srci->compressed)
             Gif_ReleaseUncompressedImage(srci);
         }
 
