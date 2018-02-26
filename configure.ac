@@ -1,5 +1,5 @@
 dnl Process this file with autoconf to produce a configure script.
-AC_INIT([gifsicle], [1.88])
+AC_INIT([gifsicle], [1.91])
 AC_CONFIG_SRCDIR([src/gifsicle.h])
 AC_CONFIG_HEADERS([config.h])
 AM_INIT_AUTOMAKE
@@ -205,7 +205,9 @@ AC_COMPILE_IFELSE([AC_LANG_PROGRAM(
     a[0] = a[1] = a[2] = a[3] = (float) rand();
     a = __builtin_shufflevector(a, a, 3, 2, 1, 0);
     printf("%f\n", a[0]);]])],
-    [AC_DEFINE([HAVE___BUILTIN_SHUFFLEVECTOR], 1, [Define to 1 if you have the `__builtin_shufflevector' function.])])
+    [AC_DEFINE([HAVE___BUILTIN_SHUFFLEVECTOR], 1, [Define to 1 if you have the `__builtin_shufflevector' function.])
+    ac_cv___builtin_shufflevector=yes], [ac_cv___builtin_shufflevector=no])
+AC_MSG_RESULT([$ac_cv___builtin_shufflevector])
 
 AC_ARG_ENABLE([simd],
     [AS_HELP_STRING([--disable-simd], [do not use SIMD instructions])],

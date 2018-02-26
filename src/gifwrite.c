@@ -1,6 +1,6 @@
 /* -*- mode: c; c-basic-offset: 2 -*- */
 /* gifwrite.c - Functions to write GIFs.
-   Copyright (C) 1997-2015 Eddie Kohler, ekohler@gmail.com
+   Copyright (C) 1997-2018 Eddie Kohler, ekohler@gmail.com
    This file is part of the LCDF GIF library.
 
    The LCDF GIF library is free software. It is distributed under the GNU
@@ -736,8 +736,9 @@ save_compression_result(Gif_Image *gfi, Gif_Writer *grr, int ok)
     if (gfi->compressed)
       (*gfi->free_compressed)((void *) gfi->compressed);
     if (ok) {
-      gfi->compressed = grr->v;
       gfi->compressed_len = grr->pos;
+      gfi->compressed_errors = 0;
+      gfi->compressed = grr->v;
       gfi->free_compressed = Gif_Free;
       grr->v = 0;
       grr->cap = 0;

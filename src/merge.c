@@ -1,5 +1,5 @@
 /* merge.c - Functions which actually combine and manipulate GIF image data.
-   Copyright (C) 1997-2014 Eddie Kohler, ekohler@gmail.com
+   Copyright (C) 1997-2018 Eddie Kohler, ekohler@gmail.com
    This file is part of gifsicle.
 
    Gifsicle is free software. It is distributed under the GNU Public License,
@@ -115,7 +115,7 @@ merge_colormap_if_possible(Gif_Colormap *dest, Gif_Colormap *src)
     Gif_Color *srccol;
     Gif_Color *destcol = dest->col;
     int ndestcol = dest->ncol;
-    int dest_userflags = dest->userflags;
+    int dest_user_flags = dest->user_flags;
     int i, x;
     int trivial_map = 1;
 
@@ -174,7 +174,7 @@ merge_colormap_if_possible(Gif_Colormap *dest, Gif_Colormap *src)
 
     /* success! save new number of colors */
     dest->ncol = ndestcol;
-    dest->userflags = dest_userflags;
+    dest->user_flags = dest_user_flags;
     return 1;
 
   /* failure: a local colormap is required */
@@ -358,7 +358,8 @@ merge_image(Gif_Stream *dest, Gif_Stream *src, Gif_Image *srci,
   desti->height = srci->height;
   desti->local = localcm;
 
-  if (trivial_map && same_compressed_ok && srci->compressed) {
+  if (trivial_map && same_compressed_ok && srci->compressed
+      && !srci->compressed_errors) {
     desti->compressed_len = srci->compressed_len;
     desti->compressed = Gif_NewArray(uint8_t, srci->compressed_len);
     desti->free_compressed = Gif_Free;
